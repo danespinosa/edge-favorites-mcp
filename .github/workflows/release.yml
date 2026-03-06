@@ -22,22 +22,22 @@ jobs:
 
       - name: Package release
         run: |
-          mkdir -p dist
-          tar -czf dist/edge-favorites-mcp-${{ github.ref_name }}.tar.gz \
-            --exclude=node_modules --exclude=.git --exclude=dist \
+          mkdir -p release-dist
+          tar -czf release-dist/edge-favorites-mcp-${{ github.ref_name }}.tar.gz \
+            --exclude=node_modules --exclude=.git --exclude=release-dist \
             -C . .
           npm ci --omit=dev
-          tar --dereference -czf dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.tar.gz \
-            --exclude=.git --exclude=dist \
+          tar --dereference -czf release-dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.tar.gz \
+            --exclude=.git --exclude=release-dist \
             -C . .
-          cd . && zip -r dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.zip \
-            . -x ".git/*" "dist/*"
+          zip -r release-dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.zip \
+            . -x ".git/*" "release-dist/*"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            dist/edge-favorites-mcp-${{ github.ref_name }}.tar.gz
-            dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.tar.gz
-            dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.zip
+            release-dist/edge-favorites-mcp-${{ github.ref_name }}.tar.gz
+            release-dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.tar.gz
+            release-dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.zip
