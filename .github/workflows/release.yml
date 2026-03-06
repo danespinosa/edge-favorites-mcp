@@ -26,10 +26,12 @@ jobs:
           tar -czf dist/edge-favorites-mcp-${{ github.ref_name }}.tar.gz \
             --exclude=node_modules --exclude=.git --exclude=dist \
             -C . .
-          cd . && npm ci --omit=dev
-          tar -czf dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.tar.gz \
+          npm ci --omit=dev
+          tar --dereference -czf dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.tar.gz \
             --exclude=.git --exclude=dist \
             -C . .
+          cd . && zip -r dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.zip \
+            . -x ".git/*" "dist/*"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -38,3 +40,4 @@ jobs:
           files: |
             dist/edge-favorites-mcp-${{ github.ref_name }}.tar.gz
             dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.tar.gz
+            dist/edge-favorites-mcp-${{ github.ref_name }}-bundled.zip
