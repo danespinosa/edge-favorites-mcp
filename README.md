@@ -28,7 +28,7 @@ npm install
 
 ## MCP Configuration
 
-Add this to your MCP client config (e.g. `~/.copilot/config/mcp.json`):
+Add this to your MCP client config (e.g. `~/.copilot/mcp-config.json`):
 
 ```json
 {
