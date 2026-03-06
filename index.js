@@ -78,7 +78,7 @@ const server = new McpServer({
 // Tool: search_favorites - search bookmarks by keyword
 server.tool(
   "search_favorites",
-  "Search Edge browser favorites/bookmarks by keyword. Matches against name, URL, and folder path.",
+  "Search Edge browser favorites/bookmarks by keyword. Matches against name, URL, and folder path. Tip: after getting results, use read_favorite_content on interesting URLs to get more context about what each link contains.",
   { query: z.string().describe("Search keyword (case-insensitive)") },
   async ({ query }) => {
     try {
@@ -200,6 +200,108 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: "text", text: `Error: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Tool: read_favorite_content - fetch URL content for more context
+server.tool(
+  "read_favorite_content",
+  "Fetch the content of a favorite's URL to get more context about the page. Best effort: may fail for pages requiring authentication. Returns extracted text content.",
+  {
+    url: z.string().describe("The URL of the favorite to fetch"),
+    maxLength: z
+      .number()
+      .optional()
+      .default(5000)
+      .describe("Max characters of content to return (default 5000)"),
+  },
+  async ({ url, maxLength }) => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "EdgeFavoritesMCP/1.0",
+          Accept: "text/html,application/xhtml+xml,text/plain,*/*",
+        },
+        redirect: "follow",
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to fetch ${url}: HTTP ${response.status} ${response.statusText}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      if (
+        !contentType.includes("text/html") &&
+        !contentType.includes("text/plain") &&
+        !contentType.includes("application/json")
+      ) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `URL returned non-text content (${contentType}). Cannot extract text.`,
+            },
+          ],
+        };
+      }
+
+      let body = await response.text();
+
+      // Strip HTML tags for a rough text extraction
+      if (contentType.includes("text/html")) {
+        // Remove script and style blocks
+        body = body.replace(/<script[\s\S]*?<\/script>/gi, "");
+        body = body.replace(/<style[\s\S]*?<\/style>/gi, "");
+        // Extract title
+        const titleMatch = body.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        const title = titleMatch ? titleMatch[1].trim() : "";
+        // Strip tags and collapse whitespace
+        body = body.replace(/<[^>]+>/g, " ");
+        body = body.replace(/&nbsp;/g, " ");
+        body = body.replace(/&amp;/g, "&");
+        body = body.replace(/&lt;/g, "<");
+        body = body.replace(/&gt;/g, ">");
+        body = body.replace(/\s+/g, " ").trim();
+        if (title) {
+          body = `Title: ${title}\n\n${body}`;
+        }
+      }
+
+      const truncated = body.slice(0, maxLength);
+      const wasTruncated = body.length > maxLength;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Content from ${url}${wasTruncated ? ` (truncated to ${maxLength} chars)` : ""}:\n\n${truncated}`,
+          },
+        ],
+      };
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Could not fetch ${url}: ${err.message}. This is expected for pages requiring authentication.`,
+          },
+        ],
         isError: true,
       };
     }
